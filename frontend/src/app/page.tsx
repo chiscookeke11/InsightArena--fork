@@ -7,6 +7,8 @@ import HeroSection from "@/component/Homepage/HeroSection";
 
 import HowItWorksSection from "@/component/Homepage/HowItWorksSection";
 
+import ReputationSection from "@/component/Homepage/ReputationSection";
+
 export default function Home() {
   return (
     <>
@@ -63,6 +65,7 @@ export default function Home() {
         <div className="relative z-10">
           <Header />
           <HeroSection />
+          <ReputationSection />
 
           <HowItWorksSection />
           <Footer />
