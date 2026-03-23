@@ -9,6 +9,7 @@ import HowItWorksSection from "@/component/Homepage/HowItWorksSection";
 
 import ReputationSection from "@/component/Homepage/ReputationSection";
 import Faq from "@/component/Homepage/Faq";
+import ComparisonSection from "@/component/Homepage/ComparisonSection";
 
 export default function Home() {
   return (
@@ -69,6 +70,7 @@ export default function Home() {
           <ReputationSection />
 
           <HowItWorksSection />
+          <ComparisonSection />
           <Faq />
           <Footer />
         </div>
