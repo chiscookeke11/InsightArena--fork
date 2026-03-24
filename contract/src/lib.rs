@@ -89,6 +89,18 @@ impl InsightArenaContract {
     pub fn list_markets(env: Env, start: u64, limit: u32) -> Vec<Market> {
         market::list_markets(&env, start, limit)
     }
+
+    /// Transition a market into the "closed" state, blocking further predictions.
+    ///
+    /// Can only be called after `market.end_time` has passed. Caller must be the
+    /// platform admin or the configured oracle address. Emits a `MarketClosed` event.
+    pub fn close_market(
+        env: Env,
+        caller: Address,
+        market_id: u64,
+    ) -> Result<(), InsightArenaError> {
+        market::close_market(&env, caller, market_id)
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

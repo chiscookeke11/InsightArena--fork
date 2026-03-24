@@ -88,6 +88,8 @@ pub struct Market {
     pub resolution_time: u64,
     /// The final outcome, set only after the market is resolved. Defaults to None.
     pub resolved_outcome: Option<Symbol>,
+    /// Indicates whether the market has been closed (end_time passed) and is awaiting oracle resolution. Defaults to false.
+    pub is_closed: bool,
     /// Indicates whether the market has been resolved and payouts processed. Defaults to false.
     pub is_resolved: bool,
     /// If true, the market is open to anyone. If false, it acts as a private competition.
@@ -133,6 +135,7 @@ impl Market {
             end_time,
             resolution_time,
             resolved_outcome: None,
+            is_closed: false,
             is_resolved: false,
             is_public,
             total_pool: 0,
