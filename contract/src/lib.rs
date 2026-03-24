@@ -2,10 +2,12 @@
 
 pub mod config;
 pub mod errors;
+pub mod market;
 pub mod storage_types;
 
 pub use crate::config::Config;
 pub use crate::errors::InsightArenaError;
+pub use crate::market::CreateMarketParams;
 pub use crate::storage_types::{DataKey, InviteCode, Market, Prediction, Season, UserProfile};
 
 use soroban_sdk::{contract, contractimpl, Address, Env};
@@ -54,8 +56,25 @@ impl InsightArenaContract {
         config::transfer_admin(&env, new_admin)
     }
 
-    // Contract modules (market, prediction, user, leaderboard, season, invite)
-    // will be implemented here using the canonical DataKey enum.
+    // ── Market ────────────────────────────────────────────────────────────────
+
+    /// Create a new prediction market. Returns the auto-assigned `market_id`.
+    ///
+    /// All market configuration fields are bundled in [`CreateMarketParams`] to
+    /// stay within Soroban's 10-parameter ABI limit. Reverts with `Paused` when
+    /// the contract is halted, or with a specific validation error on bad input.
+    pub fn create_market(
+        env: Env,
+        creator: Address,
+        params: CreateMarketParams,
+    ) -> Result<u64, InsightArenaError> {
+        market::create_market(&env, creator, params)
+    }
+
+    /// Fetch a market by ID. Returns `MarketNotFound` if it does not exist.
+    pub fn get_market(env: Env, market_id: u64) -> Result<Market, InsightArenaError> {
+        market::get_market(&env, market_id)
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
