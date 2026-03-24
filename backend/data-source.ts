@@ -1,7 +1,8 @@
 import { config } from 'dotenv';
-import dataSource from './src/config/typeorm.config';
 
-// Load environment variables for TypeORM CLI
+// Load environment variables for TypeORM CLI FIRST
 config();
+
+import dataSource from './src/config/typeorm.config';
 
 export default dataSource;
