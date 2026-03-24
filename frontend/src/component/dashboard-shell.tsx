@@ -1,5 +1,7 @@
 "use client";
 
+import RewardsWalletCard from "@/component/RewardsWalletCard";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -79,7 +81,9 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
             >
               <Icon
                 className={`h-4 w-4 ${
-                  isActive ? "text-[#4fd1c5]" : "text-[#8f98ae] group-hover:text-white"
+                  isActive
+                    ? "text-[#4fd1c5]"
+                    : "text-[#8f98ae] group-hover:text-white"
                 }`}
               />
               <span>{label}</span>
@@ -117,7 +121,8 @@ function TopNavigation() {
             Welcome back, Ayomide
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-[#97a0b5] sm:text-base">
-            Here&apos;s a quick overview of your prediction activity and performance.
+            Here&apos;s a quick overview of your prediction activity and
+            performance.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -178,7 +183,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
             <TopNavigation />
           </div>
 
-          <main className="min-h-0 flex-1">{children}</main>
+          <div className="flex gap-6 p-6">
+            <main className="flex-1">{children}</main>
+
+            <aside className="xl:block w-[300px]">
+              <RewardsWalletCard />
+            </aside>
+          </div>
         </div>
       </div>
 
