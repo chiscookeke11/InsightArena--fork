@@ -4,6 +4,7 @@ import {
   Post,
   Param,
   Body,
+  Query,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -16,6 +17,10 @@ import {
 import { MarketsService } from './markets.service';
 import { Market } from './entities/market.entity';
 import { CreateMarketDto } from './dto/create-market.dto';
+import {
+  ListMarketsDto,
+  PaginatedMarketsResponse,
+} from './dto/list-markets.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { User } from '../users/entities/user.entity';
@@ -41,14 +46,15 @@ export class MarketsController {
 
   @Get()
   @Public()
-  @ApiOperation({ summary: 'Fetch all markets' })
+  @ApiOperation({ summary: 'List and filter markets with pagination' })
   @ApiResponse({
     status: 200,
-    description: 'Markets retrieved successfully',
-    type: [Market],
+    description: 'Paginated markets list',
   })
-  async getAllMarkets(): Promise<Market[]> {
-    return this.marketsService.findAll();
+  async listMarkets(
+    @Query() query: ListMarketsDto,
+  ): Promise<PaginatedMarketsResponse> {
+    return this.marketsService.findAllFiltered(query);
   }
 
   @Get(':id')
@@ -56,11 +62,11 @@ export class MarketsController {
   @ApiOperation({ summary: 'Fetch market by ID or on-chain ID' })
   @ApiResponse({
     status: 200,
-    description: 'Market retrieved successfully',
+    description: 'Market with nested creator profile',
     type: Market,
   })
   @ApiResponse({ status: 404, description: 'Market not found' })
-  async getMarketById(@Param('id') id: string): Promise<Market | null> {
-    return this.marketsService.findById(id);
+  async getMarketById(@Param('id') id: string): Promise<Market> {
+    return this.marketsService.findByIdOrOnChainId(id);
   }
 }
