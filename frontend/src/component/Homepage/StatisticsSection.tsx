@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
-import { Sparkles, BarChart3, Users, Wallet } from "lucide-react";
+import { Sparkles, LineChart, Users, Wallet } from "lucide-react";
 
 const stats = [
   { value: "$2.4M", label: "Total Volume", icon: Wallet },
-  { value: "847", label: "Active Users", icon: Users },
-  { value: "12.5K", label: "Predictions Made", icon: BarChart3 },
-  { value: "234", label: "Markets Created", icon: Sparkles },
+  { value: "847", label: "Active Markets", icon: Users },
+  { value: "12.5K", label: "Total Predictions", icon: LineChart },
+  { value: "234", label: "Current Creators", icon: Sparkles },
 ];
 
 export default function StatisticsSection() {
