@@ -148,6 +148,24 @@ impl InsightArenaContract {
     ) -> Result<Prediction, InsightArenaError> {
         prediction::get_prediction(&env, market_id, predictor)
     }
+
+    /// Lightweight boolean check: has `predictor` already submitted a
+    /// prediction on `market_id`?
+    ///
+    /// Does not load the full `Prediction` struct — only tests key existence.
+    /// Never panics; returns `false` for non-existent markets or predictors.
+    pub fn has_predicted(env: Env, market_id: u64, predictor: Address) -> bool {
+        prediction::has_predicted(&env, market_id, predictor)
+    }
+
+    /// Return all [`Prediction`] records for a given market.
+    ///
+    /// Iterates the `PredictorList(market_id)` and fetches each prediction.
+    /// Returns an empty `Vec` when the market has no predictions or does not
+    /// exist. TTLs are extended for every record accessed.
+    pub fn list_market_predictions(env: Env, market_id: u64) -> Vec<Prediction> {
+        prediction::list_market_predictions(&env, market_id)
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

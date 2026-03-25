@@ -213,6 +213,67 @@ pub fn get_prediction(
     Ok(prediction)
 }
 
+/// Check whether `predictor` has already submitted a prediction on
+/// `market_id`.
+///
+/// This is a lightweight boolean check that does **not** load the full
+/// `Prediction` struct — it only tests key existence in persistent storage.
+/// No state mutations occur.
+///
+/// # Arguments
+/// * `market_id`  — The market to query.
+/// * `predictor`  — The address to check.
+///
+/// # Returns
+/// `true` if a prediction exists, `false` otherwise. Never panics.
+pub fn has_predicted(env: &Env, market_id: u64, predictor: Address) -> bool {
+    env.storage()
+        .persistent()
+        .has(&DataKey::Prediction(market_id, predictor))
+}
+
+/// Return all [`Prediction`] records for a given market.
+///
+/// Loads the `PredictorList(market_id)` (a `Vec<Address>` of every address
+/// that called `submit_prediction` on this market), then fetches each
+/// individual `Prediction` record. TTLs are extended for the predictor
+/// list and every prediction accessed.
+///
+/// Returns an empty `Vec` if the market has no predictions or does not
+/// exist.
+///
+/// # Arguments
+/// * `market_id` — The market whose predictions to list.
+pub fn list_market_predictions(env: &Env, market_id: u64) -> Vec<Prediction> {
+    let list_key = DataKey::PredictorList(market_id);
+
+    let predictors: Vec<Address> = env
+        .storage()
+        .persistent()
+        .get(&list_key)
+        .unwrap_or_else(|| Vec::new(env));
+
+    if predictors.is_empty() {
+        return Vec::new(env);
+    }
+
+    // Extend TTL for the predictor list itself.
+    bump_predictor_list(env, market_id);
+
+    let mut results: Vec<Prediction> = Vec::new(env);
+
+    for predictor in predictors.iter() {
+        let pred_key = DataKey::Prediction(market_id, predictor.clone());
+        if let Some(prediction) = env.storage().persistent().get::<DataKey, Prediction>(&pred_key)
+        {
+            bump_prediction(env, market_id, &predictor);
+            results.push_back(prediction);
+        }
+    }
+
+    results
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -810,5 +871,194 @@ mod prediction_tests {
             assert_eq!(pred.stake_amount, stake);
             assert_eq!(pred.chosen_outcome, symbol_short!("no"));
         }
+    }
+
+    // ── has_predicted tests ───────────────────────────────────────────────
+
+    #[test]
+    fn has_predicted_returns_true_after_submission() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, xlm_token) = deploy(&env);
+        let creator = Address::generate(&env);
+        let predictor = Address::generate(&env);
+
+        let market_id = client.create_market(&creator, &default_params(&env));
+        fund(&env, &xlm_token, &predictor, 20_000_000);
+        client.submit_prediction(
+            &predictor,
+            &market_id,
+            &symbol_short!("yes"),
+            &20_000_000_i128,
+        );
+
+        assert!(client.has_predicted(&market_id, &predictor));
+    }
+
+    #[test]
+    fn has_predicted_returns_false_when_not_predicted() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, xlm_token) = deploy(&env);
+        let creator = Address::generate(&env);
+        let predictor = Address::generate(&env);
+        let stranger = Address::generate(&env);
+
+        let market_id = client.create_market(&creator, &default_params(&env));
+        fund(&env, &xlm_token, &predictor, 20_000_000);
+        client.submit_prediction(
+            &predictor,
+            &market_id,
+            &symbol_short!("yes"),
+            &20_000_000_i128,
+        );
+
+        assert!(!client.has_predicted(&market_id, &stranger));
+    }
+
+    #[test]
+    fn has_predicted_returns_false_for_nonexistent_market() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, _) = deploy(&env);
+        let predictor = Address::generate(&env);
+
+        assert!(!client.has_predicted(&999_u64, &predictor));
+    }
+
+    #[test]
+    fn has_predicted_never_panics() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, _) = deploy(&env);
+        let random = Address::generate(&env);
+
+        // No markets, no predictions — must return false, not panic
+        let result = client.has_predicted(&0_u64, &random);
+        assert!(!result);
+    }
+
+    #[test]
+    fn has_predicted_does_not_mutate_state() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, xlm_token) = deploy(&env);
+        let creator = Address::generate(&env);
+        let predictor = Address::generate(&env);
+
+        let market_id = client.create_market(&creator, &default_params(&env));
+        fund(&env, &xlm_token, &predictor, 20_000_000);
+        client.submit_prediction(
+            &predictor,
+            &market_id,
+            &symbol_short!("yes"),
+            &20_000_000_i128,
+        );
+
+        let market_before = client.get_market(&market_id);
+        client.has_predicted(&market_id, &predictor);
+        let market_after = client.get_market(&market_id);
+
+        assert_eq!(market_before.total_pool, market_after.total_pool);
+        assert_eq!(market_before.participant_count, market_after.participant_count);
+    }
+
+    // ── list_market_predictions tests ─────────────────────────────────────
+
+    #[test]
+    fn list_market_predictions_returns_all_predictions() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, xlm_token) = deploy(&env);
+        let creator = Address::generate(&env);
+        let p1 = Address::generate(&env);
+        let p2 = Address::generate(&env);
+        let p3 = Address::generate(&env);
+
+        let market_id = client.create_market(&creator, &default_params(&env));
+        fund(&env, &xlm_token, &p1, 20_000_000);
+        fund(&env, &xlm_token, &p2, 30_000_000);
+        fund(&env, &xlm_token, &p3, 15_000_000);
+
+        client.submit_prediction(&p1, &market_id, &symbol_short!("yes"), &20_000_000_i128);
+        client.submit_prediction(&p2, &market_id, &symbol_short!("no"), &30_000_000_i128);
+        client.submit_prediction(&p3, &market_id, &symbol_short!("yes"), &15_000_000_i128);
+
+        let predictions = client.list_market_predictions(&market_id);
+        assert_eq!(predictions.len(), 3);
+        assert_eq!(predictions.get(0).unwrap().predictor, p1);
+        assert_eq!(predictions.get(1).unwrap().predictor, p2);
+        assert_eq!(predictions.get(2).unwrap().predictor, p3);
+    }
+
+    #[test]
+    fn list_market_predictions_returns_empty_for_no_predictions() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, _) = deploy(&env);
+        let creator = Address::generate(&env);
+
+        let market_id = client.create_market(&creator, &default_params(&env));
+        let predictions = client.list_market_predictions(&market_id);
+        assert_eq!(predictions.len(), 0);
+    }
+
+    #[test]
+    fn list_market_predictions_returns_empty_for_nonexistent_market() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, _) = deploy(&env);
+
+        let predictions = client.list_market_predictions(&999_u64);
+        assert_eq!(predictions.len(), 0);
+    }
+
+    #[test]
+    fn list_market_predictions_contains_correct_data() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, xlm_token) = deploy(&env);
+        let creator = Address::generate(&env);
+        let predictor = Address::generate(&env);
+        let stake: i128 = 25_000_000;
+
+        let market_id = client.create_market(&creator, &default_params(&env));
+        fund(&env, &xlm_token, &predictor, stake);
+        client.submit_prediction(&predictor, &market_id, &symbol_short!("no"), &stake);
+
+        let predictions = client.list_market_predictions(&market_id);
+        assert_eq!(predictions.len(), 1);
+
+        let pred = predictions.get(0).unwrap();
+        assert_eq!(pred.market_id, market_id);
+        assert_eq!(pred.predictor, predictor);
+        assert_eq!(pred.chosen_outcome, symbol_short!("no"));
+        assert_eq!(pred.stake_amount, stake);
+        assert!(!pred.payout_claimed);
+    }
+
+    #[test]
+    fn list_market_predictions_isolated_per_market() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, xlm_token) = deploy(&env);
+        let creator = Address::generate(&env);
+        let p1 = Address::generate(&env);
+        let p2 = Address::generate(&env);
+
+        let m1 = client.create_market(&creator, &default_params(&env));
+        let m2 = client.create_market(&creator, &default_params(&env));
+        fund(&env, &xlm_token, &p1, 40_000_000);
+        fund(&env, &xlm_token, &p2, 20_000_000);
+
+        client.submit_prediction(&p1, &m1, &symbol_short!("yes"), &20_000_000_i128);
+        client.submit_prediction(&p1, &m2, &symbol_short!("no"), &20_000_000_i128);
+        client.submit_prediction(&p2, &m1, &symbol_short!("no"), &20_000_000_i128);
+
+        let m1_preds = client.list_market_predictions(&m1);
+        let m2_preds = client.list_market_predictions(&m2);
+
+        assert_eq!(m1_preds.len(), 2);
+        assert_eq!(m2_preds.len(), 1);
     }
 }
