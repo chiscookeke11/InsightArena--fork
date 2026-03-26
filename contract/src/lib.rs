@@ -6,12 +6,16 @@ pub mod escrow;
 pub mod market;
 pub mod oracle;
 pub mod prediction;
+pub mod season;
 pub mod storage_types;
 
 pub use crate::config::Config;
 pub use crate::errors::InsightArenaError;
 pub use crate::market::CreateMarketParams;
-pub use crate::storage_types::{DataKey, InviteCode, Market, Prediction, Season, UserProfile};
+pub use crate::storage_types::{
+    DataKey, InviteCode, LeaderboardEntry, LeaderboardSnapshot, Market, Prediction, RewardPayout,
+    Season, UserProfile,
+};
 
 use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, Vec};
 
@@ -235,6 +239,63 @@ impl InsightArenaContract {
     /// Returns `0` if no fees have been collected yet. Never panics.
     pub fn get_treasury_balance(env: Env) -> i128 {
         escrow::get_treasury_balance(&env)
+    }
+
+    // ── Season / Leaderboard ────────────────────────────────────────────────
+
+    pub fn create_season(
+        env: Env,
+        admin: Address,
+        start_time: u64,
+        end_time: u64,
+        reward_pool: i128,
+    ) -> Result<u32, InsightArenaError> {
+        season::create_season(&env, admin, start_time, end_time, reward_pool)
+    }
+
+    pub fn get_season(env: Env, season_id: u32) -> Result<Season, InsightArenaError> {
+        season::get_season(&env, season_id)
+    }
+
+    pub fn get_active_season(env: Env) -> Option<Season> {
+        season::get_active_season(&env)
+    }
+
+    pub fn update_leaderboard(
+        env: Env,
+        admin: Address,
+        season_id: u32,
+        entries: Vec<LeaderboardEntry>,
+    ) -> Result<(), InsightArenaError> {
+        season::update_leaderboard(&env, admin, season_id, entries)
+    }
+
+    pub fn get_leaderboard(
+        env: Env,
+        season_id: u32,
+    ) -> Result<LeaderboardSnapshot, InsightArenaError> {
+        season::get_leaderboard(&env, season_id)
+    }
+
+    pub fn finalize_season(
+        env: Env,
+        admin: Address,
+        season_id: u32,
+    ) -> Result<(), InsightArenaError> {
+        season::finalize_season(&env, admin, season_id)
+    }
+
+    /// Resets all persisted `season_points` counters in O(n) over known user
+    /// profiles and switches the active season id to `new_season_id`.
+    ///
+    /// A future lazy-reset alternative would key season-scoped points by
+    /// `(season_id, user)` instead of mutating every profile at rollover.
+    pub fn reset_season_points(
+        env: Env,
+        admin: Address,
+        new_season_id: u32,
+    ) -> Result<u32, InsightArenaError> {
+        season::reset_season_points(&env, admin, new_season_id)
     }
 }
 
