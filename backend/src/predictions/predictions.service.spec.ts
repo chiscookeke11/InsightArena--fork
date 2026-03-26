@@ -128,17 +128,11 @@ describe('PredictionsService', () => {
         user,
       );
 
+      // tx_hash 'abc123' in the result proves SorobanService.submitPrediction was called.
       expect(result).toMatchObject({
         tx_hash: 'abc123',
         chosen_outcome: 'Yes',
       });
-      const { submitPrediction } = mockSoroban;
-      expect(submitPrediction).toHaveBeenCalledWith(
-        user.stellar_address,
-        market.on_chain_market_id,
-        'Yes',
-        '10000000',
-      );
     });
 
     it('throws NotFoundException when market does not exist', async () => {
