@@ -38,15 +38,13 @@ fn accumulate_outcome_pools(env: &Env, market_id: u64) -> (Vec<Symbol>, Vec<i128
             .get::<DataKey, Prediction>(&DataKey::Prediction(market_id, predictor))
         {
             let mut found = false;
-            let mut idx: u32 = 0;
-            for sym in outcome_symbols.iter() {
+            for (idx, sym) in (0_u32..).zip(outcome_symbols.iter()) {
                 if sym == pred.chosen_outcome {
                     let current = outcome_pools.get(idx).unwrap_or(0);
                     outcome_pools.set(idx, current.saturating_add(pred.stake_amount));
                     found = true;
                     break;
                 }
-                idx += 1;
             }
             if !found {
                 outcome_symbols.push_back(pred.chosen_outcome.clone());
