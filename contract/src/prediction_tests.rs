@@ -76,9 +76,11 @@ fn test_submit_prediction_market_expired() {
     fund(&env, &xlm_token, &predictor, stake);
 
     // Fast forward time
-    env.ledger().with_mut(|li| li.timestamp = params.end_time + 1);
+    env.ledger()
+        .with_mut(|li| li.timestamp = params.end_time + 1);
 
-    let result = client.try_submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
+    let result =
+        client.try_submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
     assert!(matches!(result, Err(Ok(InsightArenaError::MarketExpired))));
 }
 
@@ -93,7 +95,8 @@ fn test_submit_prediction_invalid_outcome() {
     let market_id = client.create_market(&Address::generate(&env), &default_params(&env));
     fund(&env, &xlm_token, &predictor, stake);
 
-    let result = client.try_submit_prediction(&predictor, &market_id, &symbol_short!("maybe"), &stake);
+    let result =
+        client.try_submit_prediction(&predictor, &market_id, &symbol_short!("maybe"), &stake);
     assert!(matches!(result, Err(Ok(InsightArenaError::InvalidOutcome))));
 }
 
@@ -109,7 +112,8 @@ fn test_submit_prediction_stake_too_low() {
     let market_id = client.create_market(&Address::generate(&env), &params);
     fund(&env, &xlm_token, &predictor, params.min_stake);
 
-    let result = client.try_submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
+    let result =
+        client.try_submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
     assert!(matches!(result, Err(Ok(InsightArenaError::StakeTooLow))));
 }
 
@@ -125,7 +129,8 @@ fn test_submit_prediction_stake_too_high() {
     let market_id = client.create_market(&Address::generate(&env), &params);
     fund(&env, &xlm_token, &predictor, stake);
 
-    let result = client.try_submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
+    let result =
+        client.try_submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
     assert!(matches!(result, Err(Ok(InsightArenaError::StakeTooHigh))));
 }
 
@@ -142,7 +147,10 @@ fn test_submit_prediction_already_predicted() {
 
     client.submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
     let result = client.try_submit_prediction(&predictor, &market_id, &symbol_short!("no"), &stake);
-    assert!(matches!(result, Err(Ok(InsightArenaError::AlreadyPredicted))));
+    assert!(matches!(
+        result,
+        Err(Ok(InsightArenaError::AlreadyPredicted))
+    ));
 }
 
 // ── claim_payout tests ────────────────────────────────────────────────────
@@ -162,7 +170,8 @@ fn test_claim_payout_correct_prediction() {
     client.submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
 
     // Resolve market
-    env.ledger().with_mut(|li| li.timestamp = params.resolution_time + 1);
+    env.ledger()
+        .with_mut(|li| li.timestamp = params.resolution_time + 1);
     client.resolve_market(&oracle, &market_id, &symbol_short!("yes"));
 
     let payout = client.claim_payout(&predictor, &market_id);
@@ -184,7 +193,8 @@ fn test_claim_payout_wrong_outcome() {
 
     client.submit_prediction(&predictor, &market_id, &symbol_short!("no"), &stake);
 
-    env.ledger().with_mut(|li| li.timestamp = params.resolution_time + 1);
+    env.ledger()
+        .with_mut(|li| li.timestamp = params.resolution_time + 1);
     client.resolve_market(&oracle, &market_id, &symbol_short!("yes"));
 
     let result = client.try_claim_payout(&predictor, &market_id);
@@ -205,12 +215,16 @@ fn test_claim_payout_already_claimed() {
 
     client.submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
 
-    env.ledger().with_mut(|li| li.timestamp = params.resolution_time + 1);
+    env.ledger()
+        .with_mut(|li| li.timestamp = params.resolution_time + 1);
     client.resolve_market(&oracle, &market_id, &symbol_short!("yes"));
 
     client.claim_payout(&predictor, &market_id);
     let result = client.try_claim_payout(&predictor, &market_id);
-    assert!(matches!(result, Err(Ok(InsightArenaError::PayoutAlreadyClaimed))));
+    assert!(matches!(
+        result,
+        Err(Ok(InsightArenaError::PayoutAlreadyClaimed))
+    ));
 }
 
 #[test]
@@ -228,7 +242,10 @@ fn test_claim_payout_before_resolution() {
     client.submit_prediction(&predictor, &market_id, &symbol_short!("yes"), &stake);
 
     let result = client.try_claim_payout(&predictor, &market_id);
-    assert!(matches!(result, Err(Ok(InsightArenaError::MarketNotResolved))));
+    assert!(matches!(
+        result,
+        Err(Ok(InsightArenaError::MarketNotResolved))
+    ));
 }
 
 // ── payout_math tests ─────────────────────────────────────────────────────
@@ -238,7 +255,7 @@ fn test_payout_math_two_winners() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, xlm_token, _, oracle) = deploy(&env);
-    
+
     let p1 = Address::generate(&env);
     let p2 = Address::generate(&env);
     let p3 = Address::generate(&env); // loser
@@ -246,7 +263,7 @@ fn test_payout_math_two_winners() {
 
     let params = default_params(&env);
     let market_id = client.create_market(&Address::generate(&env), &params);
-    
+
     fund(&env, &xlm_token, &p1, stake);
     fund(&env, &xlm_token, &p2, stake);
     fund(&env, &xlm_token, &p3, stake);
@@ -255,7 +272,8 @@ fn test_payout_math_two_winners() {
     client.submit_prediction(&p2, &market_id, &symbol_short!("yes"), &stake);
     client.submit_prediction(&p3, &market_id, &symbol_short!("no"), &stake);
 
-    env.ledger().with_mut(|li| li.timestamp = params.resolution_time + 1);
+    env.ledger()
+        .with_mut(|li| li.timestamp = params.resolution_time + 1);
     client.resolve_market(&oracle, &market_id, &symbol_short!("yes"));
 
     // Calculation:
@@ -267,7 +285,7 @@ fn test_payout_math_two_winners() {
     // Gross Payout = 50 + 25 = 75
     // Fees = 2% protocol + 1% creator = 3% of 75 = 2.25
     // Net Payout = 75 - 2.25 = 72.75 -> 72,750,000 stroops
-    
+
     let payout1 = client.claim_payout(&p1, &market_id);
     let payout2 = client.claim_payout(&p2, &market_id);
 
@@ -280,21 +298,22 @@ fn test_payout_math_single_winner_takes_all() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, xlm_token, _, oracle) = deploy(&env);
-    
+
     let p1 = Address::generate(&env);
     let p2 = Address::generate(&env); // loser
     let stake = 100_000_000_i128;
 
     let params = default_params(&env);
     let market_id = client.create_market(&Address::generate(&env), &params);
-    
+
     fund(&env, &xlm_token, &p1, stake);
     fund(&env, &xlm_token, &p2, stake);
 
     client.submit_prediction(&p1, &market_id, &symbol_short!("yes"), &stake);
     client.submit_prediction(&p2, &market_id, &symbol_short!("no"), &stake);
 
-    env.ledger().with_mut(|li| li.timestamp = params.resolution_time + 1);
+    env.ledger()
+        .with_mut(|li| li.timestamp = params.resolution_time + 1);
     client.resolve_market(&oracle, &market_id, &symbol_short!("yes"));
 
     // Calculation:
@@ -306,7 +325,7 @@ fn test_payout_math_single_winner_takes_all() {
     // Gross Payout = 100 + 100 = 200
     // Fees = 3% of 200 = 6
     // Net Payout = 200 - 6 = 194 -> 194,000,000 stroops
-    
+
     let payout = client.claim_payout(&p1, &market_id);
     assert_eq!(payout, 194_000_000);
 }
